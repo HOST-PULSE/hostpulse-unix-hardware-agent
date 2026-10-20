@@ -13,13 +13,6 @@ import (
 	"strings"
 )
 
-var smartctlBinary []byte
-
-// SetSmartctlBinary принимает массив байт зашитого smartctl из main.go
-func SetSmartctlBinary(b []byte) {
-	smartctlBinary = b
-}
-
 // AdvancedDiskStatus — Структура полностью сохранена для Django-бэкенда HostPulse
 type AdvancedDiskStatus struct {
 	DeviceID           string `json:"device_id"`
@@ -42,8 +35,8 @@ type AdvancedDiskStatus struct {
 
 type SmartctlScanOutput struct {
 	Devices []struct {
-		Name     string `json:"name"`     // например, "/dev/sda" или "/dev/ada0"
-		Type     string `json:"type"`     // например, "ata" или "nvme"
+		Name     string `json:"name"`     // Например, "/dev/sda" или "/dev/ada0"
+		Type     string `json:"type"`     // Например, "ata" или "nvme"
 		InfoName string `json:"info_name"`
 	} `json:"devices"`
 }
@@ -83,25 +76,28 @@ type SmartctlOutput struct {
 	} `json:"nvme_smart_health_information_log"`
 }
 
-// extractSmartctl извлекает зашитый smartctl во временную папку ОС
-func extractSmartctl() (string, error) {
-	tmpDir := os.TempDir()
-	execPath := filepath.Join(tmpDir, "hostpulse_smartctl")
+// Пустая функция для сохранения совместимости инициализации в main.go
+func SetSmartctlBinary(b []byte) {}
 
-	if len(smartctlBinary) == 0 {
-		return "", fmt.Errorf("массив smartctlBinary пуст! Проверьте //go:embed")
+// Ищет нативный smartctl, установленный в операционной системе
+func findSmartctlPath() (string, error) {
+	if systemPath, err := exec.LookPath("smartctl"); err == nil {
+		return systemPath, nil
 	}
 
-	if _, err := os.Stat(execPath); err == nil {
-		_ = os.Remove(execPath)
+	// Стандартные пути Unix на случай, если переменная PATH у пользователя root ограничена
+	commonPaths := []string{
+		"/usr/local/sbin/smartctl", // Стандарт для FreeBSD pkg
+		"/usr/sbin/smartctl",       // Стандарт для Linux
+		"/sbin/smartctl",
+	}
+	for _, p := range commonPaths {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
 	}
 
-	err := os.WriteFile(execPath, smartctlBinary, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	return execPath, nil
+	return "", fmt.Errorf("утилита smartctl не найдена в системе")
 }
 
 // Вспомогательная функция определения SSD для SATA дисков (Разделение Linux / FreeBSD)
@@ -114,11 +110,10 @@ func checkIsSataSSD(devicePath string) bool {
 			return strings.TrimSpace(string(rotBytes)) == "0"
 		}
 	} else if runtime.GOOS == "freebsd" {
-		// В FreeBSD опрашиваем camcontrol на предмет наличия флага SOLID STATE
 		cmd := exec.Command("camcontrol", "identify", shortName)
 		var out bytes.Buffer
 		cmd.Stdout = &out
-		if err := cmd.Run(); err == nil {
+		if cmd.Run() == nil {
 			return strings.Contains(strings.ToUpper(out.String()), "SOLID STATE")
 		}
 	}
@@ -128,7 +123,7 @@ func checkIsSataSSD(devicePath string) bool {
 // GetSmartDataUniversal собирает детальную статистику по конкретному пути диска
 func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskStatus, err error) {
 	cmd := exec.Command(smartctlPath, "-a", devicePath, "--json")
-	output, _ := cmd.Output()
+	output, _ := cmd.Output() // smartctl может возвращать ненулевой код при наличии предупреждений, игнорируем ошибку выполнения
 
 	var data SmartctlOutput
 	if err := json.Unmarshal(output, &data); err != nil {
@@ -193,7 +188,6 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 			}
 		}
 
-		// Запускаем кроссплатформенную проверку на SSD
 		if checkIsSataSSD(devicePath) {
 			res.Type = "SSD"
 		}
@@ -202,13 +196,14 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 	return res, nil
 }
 
+// GetAdvancedDiskStatus — Главная точка входа воркера
 func GetAdvancedDiskStatus() []AdvancedDiskStatus {
 	fmt.Println(" [💾 DISK SERVICE] Сбор расширенной статистики дисков...")
 	var results []AdvancedDiskStatus
 
-	smartctlPath, err := extractSmartctl()
+	smartctlPath, err := findSmartctlPath()
 	if err != nil {
-		fmt.Printf(" [❌ DISK ERROR] Не удалось распаковать утилиту smartctl: %v\n", err)
+		fmt.Printf(" [❌ DISK ERROR] %v\n", err)
 		return results
 	}
 
