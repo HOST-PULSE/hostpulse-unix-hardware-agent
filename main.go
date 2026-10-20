@@ -10,10 +10,6 @@ import (
 	"unix-hardware-agent/services" // Убедись, что имя модуля совпадает с твоим go.mod
 )
 
-// Упаковываем бинарник smartctl для Linux/Unix
-// Перед сборкой под конкретную ОС (например, Linux x86_64), в корень проекта нужно положить соответствующий файл 'smartctl'
-//go:embed smartctl
-var smartctlBytes []byte
 
 func initLogger() {
 	logsEnable := os.Getenv("HOSTPULSE_LOGS_ENABLE")
@@ -62,9 +58,7 @@ func main() {
 	// Инициализация логгера
 	initLogger()
 
-	// Передаем вкомпилированный бинарник smartctl в сервисы
-	services.SetSmartctlBinary(smartctlBytes)
-
+	
 	fmt.Println("\n=======================================================")
 	fmt.Println("=== Агент мониторинга железа HostPulse под Unix запущен ===")
 	fmt.Println("=======================================================")
