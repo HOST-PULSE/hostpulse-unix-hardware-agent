@@ -55,6 +55,21 @@ elif [ "$OS_TYPE" = "Linux" ]; then
 fi
 
 # ----------------------------------------------------
+# ДОПОЛНЕНИЕ: Остановка существующей службы перед обновлением
+# ----------------------------------------------------
+if [ "$OS_TYPE" = "Linux" ]; then
+    if systemctl is-active --quiet hostpulse-hardware.service; then
+        echo " [🔄 UPDATE] Найдена запущенная служба Linux. Остановка перед обновлением бинарника..."
+        systemctl stop hostpulse-hardware.service || true
+    fi
+elif [ "$OS_TYPE" = "FreeBSD" ]; then
+    if service hostpulse_hardware status >/dev/null 2>&1; then
+        echo " [🔄 UPDATE] Найдена запущенная служба FreeBSD. Остановка перед обновлением бинарника..."
+        service hostpulse_hardware stop || true
+    fi
+fi
+
+# ----------------------------------------------------
 # ШАГ 2: Скачивание нужной архитектуры бинарника из GitHub Releases
 # ----------------------------------------------------
 echo " [📦 STEP 2] Загрузка скомпилированного Go-бинарника агента..."
