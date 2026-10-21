@@ -148,24 +148,52 @@ func GetHardwareStaticInfo() HardwareInfo {
 	// Фолбэк для FreeBSD или если sysfs на Linux пуст (например, запуск на виртуалке KVM/Proxmox)
 	if info.Motherboard == "" || strings.Contains(strings.ToLower(info.Motherboard), "unknown") {
 		// Пробуем извлечь через dmidecode, если есть права суперпользователя
-		cmdDmi := exec.Command("dmidecode", "-t", "baseboard")
-		var out bytes.Buffer
-		cmdDmi.Stdout = &out
-		if cmdDmi.Run() == nil {
-			outputStr := out.String()
-			var vendor, product string
-
-			lines := strings.Split(outputStr, "\n")
-			for _, line := range lines {
-				if strings.Contains(line, "Manufacturer:") {
-					vendor = strings.TrimSpace(strings.Split(line, "Manufacturer:")[1])
-				}
-				if strings.Contains(line, "Product Name:") {
-					product = strings.TrimSpace(strings.Split(line, "Product Name:")[1])
+		dmiPath, err := exec.LookPath("dmidecode")
+		if err != nil {
+			// Проверяем стандартные пути портов FreeBSD и окружения Linux
+			commonPaths := []string{
+				"/usr/local/sbin/dmidecode", // Основной путь для FreeBSD
+				"/usr/sbin/dmidecode",       // Путь для Linux
+				"/sbin/dmidecode",
+			}
+			for _, p := range commonPaths {
+				if _, err := os.Stat(p); err == nil {
+					dmiPath = p
+					break
 				}
 			}
-			if vendor != "" || product != "" {
-				info.Motherboard = fmt.Sprintf("%s %s", vendor, product)
+		}
+
+		// Если утилита найдена в системе, выполняем опрос
+		if dmiPath != "" {
+			cmdDmi := exec.Command(dmiPath, "-t", "baseboard")
+			var out bytes.Buffer
+			cmdDmi.Stdout = &out
+			if cmdDmi.Run() == nil {
+				outputStr := out.String()
+				var vendor, product string
+
+				lines := strings.Split(outputStr, "\n")
+				for _, line := range lines {
+					if strings.Contains(line, "Manufacturer:") {
+						vendor = strings.TrimSpace(strings.Split(line, "Manufacturer:")[1])
+					}
+					if strings.Contains(line, "Product Name:") {
+						product = strings.TrimSpace(strings.Split(line, "Product Name:")[1])
+					}
+				}
+
+				// Защищаем базу от мусорных строк BIOS вроде "To be filled by O.E.M."
+				vendorLower := strings.ToLower(vendor)
+				productLower := strings.ToLower(product)
+				if strings.Contains(vendorLower, "to be filled") || strings.Contains(productLower, "to be filled") {
+					vendor = ""
+					product = ""
+				}
+
+				if vendor != "" || product != "" {
+					info.Motherboard = fmt.Sprintf("%s %s", vendor, product)
+				}
 			}
 		}
 	}
