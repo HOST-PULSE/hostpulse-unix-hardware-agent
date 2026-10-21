@@ -18,7 +18,7 @@ func mathRound(val float64, precision int) float64 {
 func getFallbackEstimate() []CpuTempStatus {
 	return []CpuTempStatus{
 		{
-			ZoneName: "OS_Hardware_Counters_Unavailable",
+			ZoneName: "CPU Temperature (Fallback)", // <-- Вместо страшной ошибки пишем понятный текст
 			Celsius:  45.0,
 		},
 	}

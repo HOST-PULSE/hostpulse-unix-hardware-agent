@@ -40,6 +40,30 @@ if [ "$OS_TYPE" = "FreeBSD" ]; then
     pkg update
     pkg install -y smartmontools dmidecode
 
+    # ----------------------------------------------------
+    # АВТО-АКТИВАЦИЯ ДАТЧИКОВ ТЕМПЕРАТУРЫ INTEL (СТРОГО FREEBSD)
+    # ----------------------------------------------------
+    # Проверяем, что процессор действительно Intel
+    if sysctl hw.model | grep -iq "Intel"; then
+        echo " -> Обнаружен процессор Intel. Проверка драйвера температур coretemp..."
+
+        # Загружаем драйвер в память прямо сейчас, если он ещё не загружен
+        if ! kldstat -m coretemp >/dev/null 2>&1; then
+            echo " -> Активация драйвера coretemp в ядре FreeBSD..."
+            kldload coretemp || true
+        fi
+
+        # Прописываем в loader.conf для сохранения после перезагрузки
+        if [ -f /boot/loader.conf ]; then
+            if ! grep -q 'coretemp_load="YES"' /boot/loader.conf; then
+                echo 'coretemp_load="YES"' >> /boot/loader.conf
+                echo " -> Драйвер coretemp успешно добавлен в автозагрузку ядра (/boot/loader.conf)"
+            fi
+        else
+            echo 'coretemp_load="YES"' > /boot/loader.conf
+        fi
+    fi
+
 elif [ "$OS_TYPE" = "Linux" ]; then
     echo " -> Операционная система: Linux"
     if [ -f /etc/debian_version ]; then
