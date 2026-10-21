@@ -153,7 +153,17 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 	case "scsi":
 		res.Interface = "SATA"
 	}
+	if res.Interface == "Unknown" {
+		deviceTypeLower := strings.ToLower(data.Device.Type)
 
+		if data.AtaSmartAttributes.Table != nil ||
+			strings.Contains(deviceTypeLower, "sat") ||
+			strings.Contains(deviceTypeLower, "scsi") ||
+			strings.Contains(deviceTypeLower, "ata") {
+
+			res.Interface = "SATA"
+		}
+	}
 	res.PowerOnHours = data.PowerOnTime.Hours
 	res.Temperature = data.Temperature.Current
 	res.IsHealthy = data.SmartStatus.Passed
