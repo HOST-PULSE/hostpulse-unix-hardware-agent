@@ -177,6 +177,12 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 			res.SsdWrittenGb = bytesWritten / (1024 * 1024 * 1024)
 		}
 	} else {
+		// Парсинг атрибутов для SATA/ATA накопителей
+		var lifetimeRemain uint8 = 0
+		var wearLevelingCount uint8 = 0
+		var blocksWritten uint64 = 0
+		var sectorsWritten uint64 = 0
+
 		for _, attr := range data.AtaSmartAttributes.Table {
 			switch attr.Id {
 			case 5:
@@ -185,11 +191,40 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 				res.BadSectorsPending = uint32(attr.Raw.Value)
 			case 199:
 				res.CrcErrors = uint32(attr.Raw.Value)
+			case 177: // Wear Leveling Count (Износ/остаток ресурса у многих SSD)
+				wearLevelingCount = uint8(attr.Raw.Value)
+			case 202: // Percent_Lifetime_Remain (Оставшийся ресурс в % — как на твоем скриншоте)
+				lifetimeRemain = uint8(attr.Raw.Value)
+			case 241: // Total LBAs Written / Lifetime Writes GiB (Зависит от прошивки)
+				blocksWritten = attr.Raw.Value
+			case 246: // Total_LBAs_Written (Количество секторов записи — как на твоем скриншоте)
+				sectorsWritten = attr.Raw.Value
 			}
 		}
 
+		// Если это SATA SSD, рассчитываем износ и объём записи
 		if checkIsSataSSD(devicePath) {
 			res.Type = "SSD"
+
+			// 1. Считаем процент износа (PercentageUsed)
+			if lifetimeRemain > 0 && lifetimeRemain <= 100 {
+				res.PercentageUsed = 100 - lifetimeRemain
+			} else if wearLevelingCount > 0 && wearLevelingCount <= 100 {
+				res.PercentageUsed = 100 - wearLevelingCount
+			}
+
+			// 2. Считаем объем записанных данных (SsdWrittenGb)
+			if sectorsWritten > 0 {
+				// Переводим LBA-сектора (по 512 байт) в Гигабайты
+				res.SsdWrittenGb = (sectorsWritten * 512) / (1024 * 1024 * 1024)
+			} else if blocksWritten > 0 {
+				// Некоторые контроллеры сразу отдают данные в GB/GiB, проверяем порядок числа
+				if blocksWritten > 5000000 { // Скорее всего это тоже сектора
+					res.SsdWrittenGb = (blocksWritten * 512) / (1024 * 1024 * 1024)
+				} else { // Либо это уже готовые Гигабайты
+					res.SsdWrittenGb = blocksWritten
+				}
+			}
 		}
 	}
 
