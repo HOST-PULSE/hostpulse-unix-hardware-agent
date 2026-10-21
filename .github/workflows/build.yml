@@ -28,38 +28,26 @@ jobs:
           go mod tidy
           go mod download
 
+      # 4. Компилируем бинарники сразу с уникальными именами для релиза
       - name: Build Linux amd64
         run: |
-          mkdir -p bin/linux_amd64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux_amd64/unix-hardware-agent .
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/unix-hardware-agent-linux-amd64 .
 
-      # 5. Компилируем бинарник под FreeBSD (архитектура x86_64)
       - name: Build FreeBSD amd64
         run: |
-          mkdir -p bin/freebsd_amd64
-          GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w" -o bin/freebsd_amd64/unix-hardware-agent .
+          mkdir -p dist
+          GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w" -o dist/unix-hardware-agent-freebsd-amd64 .
 
-      # 6. Компилируем бинарник под Linux ARM64
       - name: Build Linux arm64
         run: |
-          mkdir -p bin/linux_arm64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux_arm64/unix-hardware-agent .
+          mkdir -p dist
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/unix-hardware-agent-linux-arm64 .
 
-      # 7. Автоматически пушим скомпилированные бинарники обратно в ветку main твоего GitHub,
-      # чтобы инсталлятор install.sh всегда имел к ним прямой доступ по прямым ссылкам raw!
-      - name: Commit and Push Binaries to Main
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add bin/
-          
-          # Проверяем, есть ли реальные изменения в бинарниках, чтобы избежать пустых ошибок коммита
-          if ! git diff --cached --quiet; then
-            git commit -m "🤖 Auto-compiled hardware binaries for Unix platforms [skip ci]"
-          
-            # Скачиваем изменения, если ветка успела обновиться, и пушим обратно в main
-            git pull --rebase origin main || true
-            git push origin HEAD:main
-          else
-            echo "Изменений в бинарниках не обнаружено, пуш пропущен."
-          fi
+      # 5. Публикуем бинарники из папки dist в GitHub Релизы
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true

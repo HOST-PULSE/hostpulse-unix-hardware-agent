@@ -55,7 +55,7 @@ elif [ "$OS_TYPE" = "Linux" ]; then
 fi
 
 # ----------------------------------------------------
-# ШАГ 2: Скачивание нужной архитектуры бинарника с GitHub
+# ШАГ 2: Скачивание нужной архитектуры бинарника из GitHub Releases
 # ----------------------------------------------------
 echo " [📦 STEP 2] Загрузка скомпилированного Go-бинарника агента..."
 
@@ -67,20 +67,23 @@ else
     ARCH_SUFFIX="arm64"
 fi
 
-# Приводим имя ОС к нижнему регистру для соответствия путям bin/
+# Приводим имя ОС к нижнему регистру (linux или freebsd)
 OS_LOWER=$(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 
-# Формируем прямую ссылку на скачивание бинарника из твоего репозитория
-DOWNLOAD_URL="https://githubusercontent.com{GITHUB_REPO}/main/bin/${OS_LOWER}_${ARCH_SUFFIX}/${BINARY_NAME}"
+# Формируем имя файла, как оно называется в релизе (например: unix-hardware-agent-linux-amd64)
+RELEASE_BINARY_NAME="${BINARY_NAME}-${OS_LOWER}-${ARCH_SUFFIX}"
+
+# Ссылка на скачивание из последнего релиза
+DOWNLOAD_URL="https://github.com{GITHUB_REPO}/releases/latest/download/${RELEASE_BINARY_NAME}"
 
 echo " -> Ссылка для скачивания: $DOWNLOAD_URL"
 
-# Скачиваем бинарник напрямую в системную папку выполнения бинарников
+# Скачиваем бинарник напрямую в системную папку, возвращая ему стандартное имя
 if curl -sSL -o "$INSTALL_DIR/$BINARY_NAME" "$DOWNLOAD_URL"; then
     chmod 0755 "$INSTALL_DIR/$BINARY_NAME"
     echo " -> Агент успешно скачан и развёрнут в $INSTALL_DIR/$BINARY_NAME"
 else
-    echo " [❌ ERROR] Не удалось скачать скомпилированный Go-бинарник. Проверьте наличие файла в репозитории по пути bin/${OS_LOWER}_${ARCH_SUFFIX}/"
+    echo " [❌ ERROR] Не удалось скачать скомпилированный Go-бинарник. Проверьте, что релиз успешно создался в GitHub."
     exit 1
 fi
 
