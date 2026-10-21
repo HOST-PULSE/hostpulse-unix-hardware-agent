@@ -45,7 +45,7 @@ type SmartctlOutput struct {
 	SerialNumber    string `json:"serial_number"`
 	FirmwareVersion string `json:"firmware_version"`
 	ModelName       string `json:"model_name"`
-
+	RotationRate int `json:"rotation_rate"`
 	SmartStatus struct {
 		Passed bool `json:"passed"`
 	} `json:"smart_status"`
@@ -202,8 +202,17 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 			}
 		}
 
-		// Если это SATA SSD, рассчитываем износ и объём записи
-		if checkIsSataSSD(devicePath) {
+		// --- ОСТОРОЖНЫЙ И БЕЗОПАСНЫЙ ФИКС ДЛЯ FREEBSD ---
+		// Если старая функция checkIsSataSSD вернула true (как на Linux) — отлично.
+		// Если она вернула false (как на FreeBSD), мы подстраховываемся анализом названия модели и SMART-атрибутов.
+		modelUpper := strings.ToUpper(res.Model)
+		isSataSSD := checkIsSataSSD(devicePath) ||
+			strings.Contains(modelUpper, "SSD") ||
+			strings.Contains(modelUpper, "SOLID STATE") ||
+			lifetimeRemain > 0 ||
+			wearLevelingCount > 0
+
+		if isSataSSD {
 			res.Type = "SSD"
 
 			// 1. Считаем процент износа (PercentageUsed)
@@ -230,6 +239,7 @@ func GetSmartDataUniversal(smartctlPath, devicePath string) (res AdvancedDiskSta
 
 	return res, nil
 }
+
 
 // GetAdvancedDiskStatus — Главная точка входа воркера
 func GetAdvancedDiskStatus() []AdvancedDiskStatus {
