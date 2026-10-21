@@ -73,6 +73,7 @@ OS_LOWER=$(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 # Формируем имя файла, как оно называется в релизе (например: unix-hardware-agent-linux-amd64)
 RELEASE_BINARY_NAME="${BINARY_NAME}-${OS_LOWER}-${ARCH_SUFFIX}"
 
+
 # Ссылка на скачивание из последнего релиза
 DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${RELEASE_BINARY_NAME}"
 
