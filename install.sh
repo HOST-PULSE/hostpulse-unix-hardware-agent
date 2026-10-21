@@ -76,7 +76,7 @@ echo " [📦 STEP 2] Загрузка скомпилированного Go-би
 
 # Определяем архитектуру процессора хост-машины
 ARCH="$(uname -m)"
-if [ "$ARCH" = "x86_64" ]; then
+if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     ARCH_SUFFIX="amd64"
 else
     ARCH_SUFFIX="arm64"
