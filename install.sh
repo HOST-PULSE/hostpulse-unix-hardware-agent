@@ -74,7 +74,7 @@ OS_LOWER=$(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 RELEASE_BINARY_NAME="${BINARY_NAME}-${OS_LOWER}-${ARCH_SUFFIX}"
 
 # Ссылка на скачивание из последнего релиза
-DOWNLOAD_URL="https://github.com{GITHUB_REPO}/releases/latest/download/${RELEASE_BINARY_NAME}"
+DOWNLOAD_URL="https://github.com${GITHUB_REPO}/releases/latest/download/${RELEASE_BINARY_NAME}"
 
 echo " -> Ссылка для скачивания: $DOWNLOAD_URL"
 
