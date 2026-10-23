@@ -239,7 +239,7 @@ func sendRequest(url string, jsonData []byte, workerName string, token string) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// ИСПРАВЛЕНО под Linux/Unix стек, чтобы бэкенд мог различать ОС агента
-	req.Header.Set("X-Agent-Type", "agent_hardware_linux")
+	req.Header.Set("X-Agent-Type", "agent_hardware_unix")
 	req.Header.Set("X-Agent-Token", token)
 
 	client := &http.Client{Timeout: 4 * time.Second}
